@@ -1,4 +1,6 @@
-﻿using System.Net.Http.Json;
+﻿using Azure.Core;
+using Azure.Identity;
+using System.Net.Http.Json;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -11,20 +13,22 @@ static class Program
     /// <summary>
     /// Identify Azure Pipeline Variable Groups using a given secret.
     /// </summary>
-    /// <param name="AccessToken">An Azure DevOps token with vso.variablegroups_read permission to the organization</param>
     /// <param name="VaultName">The name of the vault containing the secret</param>
     /// <param name="SecretName">The name of the secret</param>
     /// <param name="OrganizationUri">URI of the Azure DevOps organization</param>
     /// <param name="Project">Name of the Azure DevOps project</param>
-    static async Task Main(string AccessToken, string VaultName, string SecretName, string OrganizationUri = "https://dev.azure.com/dnceng", string Project = "internal")
+    static async Task Main(string VaultName, string SecretName, string OrganizationUri = "https://dev.azure.com/dnceng", string Project = "internal")
     {
-        ArgumentNullException.ThrowIfNull(AccessToken, nameof(AccessToken));
         ArgumentNullException.ThrowIfNull(VaultName, nameof(VaultName));
         ArgumentNullException.ThrowIfNull(SecretName, nameof(SecretName));
         ArgumentNullException.ThrowIfNull(OrganizationUri, nameof(OrganizationUri));
         ArgumentNullException.ThrowIfNull(Project, nameof(Project));
 
-        IList<VariableGroup> variableGroups = await GetVariableGroups(OrganizationUri, Project, AccessToken);
+        DefaultAzureCredential credential = new();
+        TokenRequestContext requestContext = new(["499b84ac-1321-427f-aa17-267ca6975798/.default"]);
+        AccessToken result = await credential.GetTokenAsync(requestContext, CancellationToken.None);
+
+        IList<VariableGroup> variableGroups = await GetVariableGroups(OrganizationUri, Project, result.Token);
 
         IEnumerable<(string Name, int Id)> vaultNames = variableGroups
             .Where(group => group.Type.Equals(VariableGroup.TypeIfAzureKeyVault))
